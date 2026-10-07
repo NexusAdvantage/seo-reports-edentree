@@ -13,7 +13,7 @@ export default async function Home({ searchParams }) {
     <>
       <div className="band">
         <div className="wrap">
-          <div className="top"><b>NEXUS</b><a href="/api/logout">Sign out</a></div>
+          <div className="top"><b>NEXUS</b>{process.env.REQUIRE_LOGIN === "1" ? <a href="/api/logout">Sign out</a> : null}</div>
           <div className="hero">
             <span className="pill">SEO reports</span>
             <h1>{site.client}</h1>
