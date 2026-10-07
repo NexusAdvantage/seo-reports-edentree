@@ -1,8 +1,10 @@
 # Eden Tree Pros SEO reports
 
-Password protected report site for Eden Tree Pros. Built and maintained by Nexus.
+Report site for Eden Tree Pros. Built and maintained by Nexus.
 
 * Live site: https://seo-reports-edentree.vercel.app
-* Password: REPORT_PASSWORD environment variable on the Vercel project seo-reports-edentree (also in Bitwarden). Never commit it.
-* Each month a new file is added at public/reports/YYYY-MM.html and a new entry at the front of data/reports.json. Old months are never deleted.
-* Pushing to main redeploys the site.
+* Login is off for now. To turn it on, set REQUIRE_LOGIN=1 on the Vercel project (password is REPORT_PASSWORD, also in Bitwarden). Never commit a password.
+* data/site.json holds the client name, website link, logo and brand colors.
+* data/reports.json holds every month, one line per month, newest first. The page draws the report from this file.
+* public/reports/YYYY-MM.html is the printable version behind the Download PDF button.
+* Monthly update: add the new month line at the top of data/reports.json and add public/reports/YYYY-MM.html. Never delete older months. Pushing to main redeploys the site.
