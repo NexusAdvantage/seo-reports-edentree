@@ -15,10 +15,14 @@ const METRICS = {
   posts: { label: "Google posts published", short: "Posts", kind: "int", better: "up", tip: "Posts published on your Google Business Profile" },
 };
 
+// Special characters kept as codes so the file stays plain ASCII.
+const c = (n) => String.fromCharCode(n);
+const CH = { nb: c(160), minus: c(8722), dot: c(9679), up: c(9650), down: c(9660), stars: c(9733).repeat(5), mid: c(183) };
+
 const has = (v) => v !== null && v !== undefined;
 
 export function fmt(v, kind) {
-  if (!has(v)) return " ";
+  if (!has(v)) return CH.nb;
   if (kind === "pos") return v.toFixed(1);
   if (kind === "pct") return (v < 1 ? v.toFixed(2) : v.toFixed(1)) + "%";
   if (kind === "money") return v >= 10000 ? "$" + (v / 1000).toFixed(1) + "k" : "$" + Math.round(v).toLocaleString("en-US");
@@ -40,12 +44,12 @@ function change(key, a, b) {
   const tone = d === 0 ? "flat" : good ? "good" : "bad";
   let text;
   if (m.kind === "pos") text = d === 0 ? "No change" : `${Math.abs(d).toFixed(1)} spots ${d < 0 ? "better" : "worse"}`;
-  else if (m.kind === "pct") text = d === 0 ? "No change" : `${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(2)} pts`;
+  else if (m.kind === "pct") text = d === 0 ? "No change" : `${d > 0 ? "+" : CH.minus}${Math.abs(d).toFixed(2)} pts`;
   else if (a === 0) text = b === 0 ? "No change" : "New";
   else {
     const r = b / a;
     if (r >= 2) text = `${r.toFixed(1)}x`;
-    else text = `${d >= 0 ? "+" : "−"}${Math.abs(Math.round((d / a) * 100))}%`;
+    else text = `${d >= 0 ? "+" : CH.minus}${Math.abs(Math.round((d / a) * 100))}%`;
   }
   // Size of the move, used to rank the biggest changes.
   const size = m.kind === "pos" ? Math.abs(d) / Math.max(a, 1) : a === 0 ? (b > 0 ? 1 : 0) : Math.abs(Math.log(Math.max(b, 0.01) / a));
@@ -53,8 +57,8 @@ function change(key, a, b) {
 }
 
 function Arrow({ tone }) {
-  if (tone === "flat") return <span className="ar flat">{"●"}</span>;
-  return <span className={`ar ${tone}`}>{tone === "good" ? "▲" : "▼"}</span>;
+  if (tone === "flat") return <span className="ar flat">{CH.dot}</span>;
+  return <span className={`ar ${tone}`}>{tone === "good" ? CH.up : CH.down}</span>;
 }
 
 function Spark({ months, k, sel, cmp }) {
@@ -148,13 +152,39 @@ function Trend({ months, k, sel, cmp, onPick }) {
   );
 }
 
+
+// Which number each service card points at. First one with data wins, and no number is used twice.
+const SVC_METRICS = { search: ["page1", "clicks", "impressions"], globe: ["clicks", "impressions"], chart: ["top3", "position", "impressions"] };
+
+function serviceStats(services, data, S, C, sel) {
+  const used = new Set();
+  return services.map((s) => {
+    if (s.icon === "pin" && data.gbp && has(S.values.posts)) {
+      const c = C ? change("posts", C.values.posts, S.values.posts) : null;
+      return { value: String(S.values.posts), label: `posts published in ${S.short}`, c };
+    }
+    if (s.icon === "list" && data.listings && data.listings[sel]) {
+      const L = Object.fromEntries(data.listings[sel]);
+      if (L["Live and synced"]) return { value: L["Directories"] ? `${L["Live and synced"]} of ${L["Directories"]}` : L["Live and synced"], label: "directories live and synced" };
+    }
+    if (s.icon === "star" && S.reviews) return { value: S.reviews.rating, label: `star rating, ${S.reviews.total} reviews` };
+    for (const k of SVC_METRICS[s.icon] || []) {
+      if (used.has(k) || !data.metrics.includes(k) || !has(S.values[k])) continue;
+      used.add(k);
+      const c = C ? change(k, C.values[k], S.values[k]) : null;
+      return { value: fmt(S.values[k], METRICS[k].kind), label: METRICS[k].label[0].toLowerCase() + METRICS[k].label.slice(1), c };
+    }
+    return null;
+  });
+}
+
 function Stars({ rating }) {
   const pct = Math.max(0, Math.min(100, (parseFloat(rating) / 5) * 100));
   return (
     <span className="stars" aria-label={`${rating} out of 5 stars`}>
-      <span className="stars-bg">{"★★★★★"}</span>
+      <span className="stars-bg">{CH.stars}</span>
       <span className="stars-fg" style={{ width: `${pct}%` }}>
-        {"★★★★★"}
+        {CH.stars}
       </span>
     </span>
   );
@@ -195,7 +225,7 @@ export default function Report({ data, site }) {
   const moves = C
     ? keys
         .map((k) => ({ k, c: change(k, C.values[k], S.values[k]) }))
-        .filter((x) => x.c && x.c.tone !== "flat")
+        .filter((x) => x.c && x.c.tone === "good")
         .sort((a, b) => b.c.size - a.c.size)
         .slice(0, 3)
     : [];
@@ -250,7 +280,7 @@ export default function Report({ data, site }) {
 
           {moves.length > 0 && (
             <div className="moves">
-              <span className="pk-label">Biggest changes since {C.label.split(" ")[0]}</span>
+              <span className="pk-label">Biggest wins since {C.label.split(" ")[0]}</span>
               <div className="move-row">
                 {moves.map(({ k, c }) => (
                   <span key={k} className={`move ${c.tone}`}>
@@ -283,7 +313,7 @@ export default function Report({ data, site }) {
                   ) : C ? (
                     "No data to compare"
                   ) : (
-                    " "
+                    CH.nb
                   )}
                 </span>
                 <Spark months={months} k={k} sel={sel} cmp={cmp} />
@@ -331,8 +361,8 @@ export default function Report({ data, site }) {
                 return (
                   <div className="cmp-row" key={k}>
                     <span className="cr-l">{m.label}</span>
-                    {C && <span className="cr-a">{has(a) ? fmt(a, m.kind) : "—"}</span>}
-                    <span className="cr-b">{has(b) ? fmt(b, m.kind) : "—"}</span>
+                    {C && <span className="cr-a">{has(a) ? fmt(a, m.kind) : "No data"}</span>}
+                    <span className="cr-b">{has(b) ? fmt(b, m.kind) : "No data"}</span>
                     {C && <span className={`cr-c ${c ? c.tone : "none"}`}>{c ? c.text : ""}</span>}
                   </div>
                 );
@@ -362,8 +392,8 @@ export default function Report({ data, site }) {
                       )}
                       <div className="sr-m">
                         {has(imp) ? `${imp.toLocaleString("en-US")} times shown` : ""}
-                        {has(clicks) ? ` · ${clicks} clicks` : ""}
-                        {S.searchesNote ? ` · ${S.searchesNote}` : ""}
+                        {has(clicks) ? ` ${CH.mid} ${clicks} clicks` : ""}
+                        {S.searchesNote ? ` ${CH.mid} ${S.searchesNote}` : ""}
                       </div>
                     </div>
                   ));
@@ -464,19 +494,38 @@ export default function Report({ data, site }) {
         )}
 
         <section className="sec">
-          <h2 className="sec-h">What we do for you</h2>
+          <h2 className="sec-h">What we do and what it moved</h2>
           <div className="services">
-            {data.services.map((s) => (
-              <div className="svc" key={s.name}>
-                <span className="svc-i">
-                  <Icon name={s.icon} />
-                </span>
-                <div>
-                  <h3>{s.name}</h3>
-                  <p>{s.detail}</p>
-                </div>
-              </div>
-            ))}
+            {(() => {
+              const stats = serviceStats(data.services, data, S, C, sel);
+              return data.services
+                .map((s, i) => ({ s, st: stats[i] }))
+                .sort((a, b) => (b.st ? 1 : 0) - (a.st ? 1 : 0))
+                .map(({ s, st }) => (
+                  <div className={`svc${st ? " has-stat" : ""}`} key={s.name}>
+                    <div className="svc-top">
+                      <span className="svc-i">
+                        <Icon name={s.icon} />
+                      </span>
+                      <div>
+                        <h3>{s.name}</h3>
+                        <p>{s.detail}</p>
+                      </div>
+                    </div>
+                    {st && (
+                      <div className="svc-stat">
+                        <span className="svc-v">{st.value}</span>
+                        <span className="svc-l">{st.label}</span>
+                        {st.c && st.c.tone === "good" && (
+                          <span className="svc-c">
+                            <Arrow tone="good" /> {st.c.text} vs {C.short}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ));
+            })()}
           </div>
         </section>
 

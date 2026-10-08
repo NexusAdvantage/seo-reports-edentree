@@ -1,6 +1,7 @@
 import site from "../data/site.json";
 import data from "../data/report.json";
 import Report from "./report";
+import "./services.css";
 
 export default function Home() {
   const showLogout = process.env.REQUIRE_LOGIN === "1";
