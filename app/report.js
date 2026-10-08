@@ -4,6 +4,7 @@ import Icon from "./icons";
 
 // Every number the report can show. Each client's data/report.json says which ones it has.
 const METRICS = {
+  leads: { label: "New leads", short: "Leads", kind: "int", better: "up", tip: "New people who reached out by form, call, text or ad" },
   clicks: { label: "Clicks from Google", short: "Clicks", kind: "int", better: "up", tip: "People who clicked through to your site from a Google search" },
   impressions: { label: "Times shown on Google", short: "Shown", kind: "int", better: "up", tip: "How many times your site appeared in Google results" },
   position: { label: "Avg Google position", short: "Position", kind: "pos", better: "down", tip: "Average spot in Google results. Lower is better" },
@@ -12,6 +13,7 @@ const METRICS = {
   top3: { label: "Top 3 keywords", short: "Top 3", kind: "int", better: "up", tip: "Searches where you rank in the top 3" },
   traffic: { label: "Est. monthly visitors", short: "Visitors", kind: "int", better: "up", tip: "Ahrefs estimate of visitors from Google" },
   value: { label: "Traffic value", short: "Value", kind: "money", better: "up", tip: "What the same traffic would cost in Google Ads (Ahrefs estimate)" },
+  webLeads: { label: "Website form leads", short: "Web leads", kind: "int", better: "up", tip: "Leads that came in through your website forms" },
   posts: { label: "Google posts published", short: "Posts", kind: "int", better: "up", tip: "Posts published on your Google Business Profile" },
 };
 
@@ -154,7 +156,7 @@ function Trend({ months, k, sel, cmp, onPick }) {
 
 
 // Which number each service card points at. First one with data wins, and no number is used twice.
-const SVC_METRICS = { search: ["page1", "clicks", "impressions"], globe: ["clicks", "impressions"], chart: ["top3", "position", "impressions"] };
+const SVC_METRICS = { search: ["page1", "clicks", "impressions"], globe: ["webLeads", "clicks", "impressions"], chart: ["top3", "position", "impressions"] };
 
 function serviceStats(services, data, S, C, sel) {
   const used = new Set();
@@ -169,7 +171,7 @@ function serviceStats(services, data, S, C, sel) {
     }
     if (s.icon === "star" && S.reviews) return { value: S.reviews.rating, label: `star rating, ${S.reviews.total} reviews` };
     for (const k of SVC_METRICS[s.icon] || []) {
-      if (used.has(k) || !data.metrics.includes(k) || !has(S.values[k])) continue;
+      if (used.has(k) || !METRICS[k] || !has(S.values[k])) continue;
       used.add(k);
       const c = C ? change(k, C.values[k], S.values[k]) : null;
       return { value: fmt(S.values[k], METRICS[k].kind), label: METRICS[k].label[0].toLowerCase() + METRICS[k].label.slice(1), c };
@@ -225,7 +227,7 @@ export default function Report({ data, site }) {
   const moves = C
     ? keys
         .map((k) => ({ k, c: change(k, C.values[k], S.values[k]) }))
-        .filter((x) => x.c && x.c.tone === "good")
+        .filter((x) => x.c && x.c.tone === "good" && x.c.text !== "New")
         .sort((a, b) => b.c.size - a.c.size)
         .slice(0, 3)
     : [];
@@ -347,6 +349,36 @@ export default function Report({ data, site }) {
           </div>
         </section>
 
+        {S.leads && S.leads.length ? (
+          <section className="card">
+            <div className="card-head">
+              <h2>Where your leads came from</h2>
+              <span className="muted sm">{S.short}</span>
+            </div>
+            <div className="lead-total">
+              <span className="big">{S.values.leads}</span>
+              <span className="muted sm">new leads in {S.label}</span>
+            </div>
+            <div className="lead-bars">
+              {(() => {
+                const max = Math.max(...S.leads.map((x) => x[1]), 1);
+                return [...S.leads]
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([label, n]) => (
+                    <div className="lead-row" key={label}>
+                      <span className="lead-l">{label}</span>
+                      <span className="lead-bar">
+                        <i style={{ width: `${(n / max) * 100}%` }} />
+                      </span>
+                      <span className="lead-n">{n}</span>
+                    </div>
+                  ));
+              })()}
+            </div>
+            {data.leadsNote ? <p className="lead-note">{data.leadsNote}</p> : null}
+          </section>
+        ) : null}
+
         <div className="grid2">
           <section className="card">
             <div className="card-head">
@@ -412,7 +444,7 @@ export default function Report({ data, site }) {
                 <div className="card-head">
                   <h2>Google Business Profile</h2>
                   <span className="badge good">
-                    <Icon name="check" /> Weekday schedule
+                    <Icon name="check" /> {data.gbp.badge || "Weekday schedule"}
                   </span>
                 </div>
                 <div className="gbp-stats">
