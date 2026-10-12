@@ -84,7 +84,38 @@ function Spark({ months, k, sel, cmp }) {
   );
 }
 
-function Trend({ months, k, sel, cmp, onPick }) {
+// Eras mark big changes such as a new website launch. data.eras is [{start: "YYYY-MM", label, mark}] in order.
+function eraOf(month, eras) {
+  if (!eras || !eras.length) return null;
+  let found = null;
+  for (const e of eras) if (month >= e.start) found = e;
+  return found;
+}
+
+// Month options for the pickers, newest first, grouped by era when the client has eras.
+function monthOptions(months, eras, skip) {
+  const list = [...months].reverse().filter((m) => m.month !== skip);
+  const opt = (m) => (
+    <option key={m.month} value={m.month}>
+      {m.label}
+    </option>
+  );
+  if (!eras || !eras.length) return list.map(opt);
+  const groups = [];
+  for (const m of list) {
+    const e = eraOf(m.month, eras);
+    const label = e ? e.label : "Earlier";
+    if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+    groups[groups.length - 1].items.push(m);
+  }
+  return groups.map((g) => (
+    <optgroup key={g.label} label={g.label}>
+      {g.items.map(opt)}
+    </optgroup>
+  ));
+}
+
+function Trend({ months, k, sel, cmp, onPick, eras }) {
   const m = METRICS[k];
   const vals = months.map((x) => x.values[k]);
   const nums = vals.filter(has);
@@ -92,6 +123,11 @@ function Trend({ months, k, sel, cmp, onPick }) {
   const hi = Math.max(...nums, 0);
   const lo = Math.min(...nums);
   const [hover, setHover] = useState(null);
+  const eraStart = (i) => {
+    if (!eras || i === 0) return null;
+    const a = eraOf(months[i - 1].month, eras), b = eraOf(months[i].month, eras);
+    return a !== b ? b : null;
+  };
   return (
     <div className="trend">
       <div className="trend-plot">
@@ -113,7 +149,7 @@ function Trend({ months, k, sel, cmp, onPick }) {
           return (
             <button
               key={mo.month}
-              className={`col${isSel ? " sel" : ""}${isCmp ? " cmp" : ""}${has(v) ? "" : " na"}`}
+              className={`col${isSel ? " sel" : ""}${isCmp ? " cmp" : ""}${has(v) ? "" : " na"}${eraStart(i) ? " era-start" : ""}`}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
               onFocus={() => setHover(i)}
@@ -121,6 +157,7 @@ function Trend({ months, k, sel, cmp, onPick }) {
               onClick={() => onPick(mo.month)}
               aria-label={`${mo.label}: ${has(v) ? fmt(v, m.kind) : "no data"}`}
             >
+              {eraStart(i) ? <span className="era-mark">{eraStart(i).mark || eraStart(i).label}</span> : null}
               {has(v) ? (
                 inv ? (
                   <span className="dot" style={{ bottom: `${h}%` }}>
@@ -224,7 +261,9 @@ export default function Report({ data, site }) {
     setSel(m);
     if (m === cmp) setCmp(null);
   };
-  const pickCmp = (m) => setCmp(m === cmp || m === sel ? null : m);
+  const eras = data.eras || null;
+  const Sera = eraOf(sel, eras);
+  const Cera = C ? eraOf(C.month, eras) : null;
 
   const moves = C
     ? keys
@@ -243,7 +282,9 @@ export default function Report({ data, site }) {
         <div className="wrap">
           <div className="hero-row">
             <div>
-              <p className="eyebrow">SEO report</p>
+              <p className="eyebrow">
+                SEO report{Sera ? <span className="era-tag">{Sera.label}</span> : null}
+              </p>
               <h1>{S.label}</h1>
               {S.headline ? <p className="headline">{S.headline}</p> : null}
               {S.note ? <p className="note-h">{S.note}</p> : null}
@@ -256,31 +297,27 @@ export default function Report({ data, site }) {
           </div>
 
           <div className="pickers noprint">
-            <div className="picker">
+            <label className="picker">
               <span className="pk-label">Showing</span>
-              <div className="chips">
-                {months.map((m) => (
-                  <button key={m.month} className={`chip${m.month === sel ? " on" : ""}`} onClick={() => pickSel(m.month)}>
-                    {m.short}
-                  </button>
-                ))}
-              </div>
-            </div>
+              <select className="pk-select" value={sel} onChange={(e) => pickSel(e.target.value)}>
+                {monthOptions(months, eras, null)}
+              </select>
+            </label>
             {months.length > 1 && (
-              <div className="picker">
+              <label className="picker">
                 <span className="pk-label">Compare to</span>
-                <div className="chips">
-                  {months
-                    .filter((m) => m.month !== sel)
-                    .map((m) => (
-                      <button key={m.month} className={`chip ghost${m.month === cmp ? " on" : ""}`} onClick={() => pickCmp(m.month)}>
-                        {m.short}
-                      </button>
-                    ))}
-                </div>
-              </div>
+                <select className="pk-select ghost" value={cmp || ""} onChange={(e) => setCmp(e.target.value || null)}>
+                  <option value="">Nothing</option>
+                  {monthOptions(months, eras, sel)}
+                </select>
+              </label>
             )}
           </div>
+          {C && Sera && Cera && Sera !== Cera ? (
+            <p className="era-compare noprint">
+              Comparing {C.label} ({Cera.label}) to {S.label} ({Sera.label})
+            </p>
+          ) : null}
 
           {moves.length > 0 && (
             <div className="moves">
@@ -337,7 +374,7 @@ export default function Report({ data, site }) {
               ))}
             </div>
           </div>
-          <Trend months={months} k={focus} sel={sel} cmp={cmp} onPick={pickSel} />
+          <Trend months={months} k={focus} sel={sel} cmp={cmp} onPick={pickSel} eras={data.eras} />
           <div className="legend">
             <span>
               <i className="sw sel" /> {S.short}
