@@ -14,6 +14,9 @@ const METRICS = {
   traffic: { label: "Est. monthly visitors", short: "Visitors", kind: "int", better: "up", tip: "Ahrefs estimate of visitors from Google" },
   value: { label: "Traffic value", short: "Value", kind: "money", better: "up", tip: "What the same traffic would cost in Google Ads (Ahrefs estimate)" },
   posts: { label: "Google posts published", short: "Posts", kind: "int", better: "up", tip: "Posts published on your Google Business Profile" },
+  health: { label: "Site health score", short: "Health", kind: "int", better: "up", tip: "Ahrefs score out of 100. Higher means fewer pages with technical errors" },
+  errorPages: { label: "Pages with errors", short: "Error pages", kind: "int", better: "down", tip: "Pages Ahrefs found with at least one technical error" },
+  indexed: { label: "Pages in Google", short: "In Google", kind: "int", better: "up", tip: "Pages Google has indexed and can show in search results" },
 };
 
 // Special characters kept as codes so the file stays plain ASCII.
@@ -155,7 +158,7 @@ function Trend({ months, k, sel, cmp, onPick }) {
 
 
 // Which number each service card points at. First one with data wins, and no number is used twice.
-const SVC_METRICS = { search: ["page1", "clicks", "impressions"], globe: ["leads", "clicks", "impressions"], chart: ["top3", "position", "impressions"] };
+const SVC_METRICS = { search: ["page1", "clicks", "impressions"], globe: ["leads", "clicks", "impressions"], chart: ["top3", "position", "impressions"], wrench: ["health", "errorPages"] };
 
 function serviceStats(services, data, S, C, sel) {
   const used = new Set();
