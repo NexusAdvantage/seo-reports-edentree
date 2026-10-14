@@ -388,6 +388,19 @@ export default function Report({ data, site }) {
           </div>
         </section>
 
+        {(data.figures || [])
+          .filter((f) => f.month === sel)
+          .map((f) => (
+            <section className="card" key={f.img}>
+              <div className="card-head">
+                <h2>{f.title}</h2>
+                {f.source ? <span className="muted sm">{f.source}</span> : null}
+              </div>
+              <img className="fig-img" src={f.img} alt={f.title} loading="lazy" />
+              {f.caption ? <p className="fig-cap">{f.caption}</p> : null}
+            </section>
+          ))}
+
         {S.leads && S.leads.length ? (
           <section className="card">
             <div className="card-head">
