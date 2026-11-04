@@ -1,6 +1,6 @@
 {
 "metrics": ["leads", "page1", "top3", "clicks", "impressions", "position", "ctr", "posts"],
-"primary": ["leads", "page1", "clicks", "posts"],
+"primary": ["leads", "page1", "clicks", "impressions"],
 "eras": [{"start": "2026-08", "label": "Old website", "mark": "Old site"}, {"start": "2026-09", "label": "New website by Nexus", "mark": "New site live"}],
 "months": [
 {"month": "2026-08", "label": "August 2026", "short": "Aug", "values": {"leads": null, "page1": 15, "top3": 9, "clicks": null, "impressions": null, "position": null, "ctr": null, "posts": 0}, "searches": [], "note": "The new website went live September 11. Website leads before then were not tracked."},
